@@ -30,3 +30,19 @@
 *.exe
 *.out
 *.app
+
+# Studio Code
+.vs
+.vscode
+out
+
+# Clion
+.idea
+
+# Build Artifacts
+build
+build.*
+bin
+bin.*
+cmake-build-debug
+cmake-build-debug.*
