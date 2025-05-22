@@ -1,19 +1,12 @@
 #include <iostream>
 #include <opencv2/opencv.hpp>
 #include <chrono>
-#include "../include/model.hpp"
+#include <volume_control.hpp>
+#include <detector.hpp>
+#include <utils.hpp>
+#include <model.hpp>
 
-void set_volume(const short int volume) {
-    if (volume < 0 || volume > 100) {
-        return;
-    }
-    // forming command to change volume
-    std::string command = "osascript -e \"set volume output volume " + std::to_string(volume) + "\"";
-
-    // change volume
-    system(command.c_str());
-}
-
+/*
 int main(int argc, char** argv) {
     cv::VideoCapture cap(0, cv::CAP_AVFOUNDATION);
 
@@ -55,5 +48,11 @@ int main(int argc, char** argv) {
 
     cap.release();
     cv::destroyAllWindows();
+    return 0;
+}
+*/
+
+int main(int argc, char* argv[]) {
+    VolumeControl::set_volume(0.4f);
     return 0;
 }

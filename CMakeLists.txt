@@ -16,8 +16,12 @@ add_library(volume_control src/volume_control.cpp include/volume_control.hpp)
 add_library(detector src/detector.cpp include/detector.hpp)
 add_library(utils src/utils.cpp include/utils.hpp)
 add_library(model src/model.cpp include/model.hpp)
+add_library(dataset src/dataset.cpp include/dataset.hpp)
+
+include_directories(${CMAKE_SOURCE_DIR}/include)
 
 add_executable(hand_volume_control src/main.cpp)
+add_executable(train_model src/train.cpp)
 
 # Link main.cpp with libraries
 target_link_libraries(hand_volume_control
@@ -25,8 +29,31 @@ target_link_libraries(hand_volume_control
         detector
         utils
         model
+        dataset
         "${TORCH_LIBRARIES}"
         "${OpenCV_LIBS}"
+        "/opt/homebrew/opt/libomp/lib/libomp.dylib"
+)
+
+target_link_libraries(volume_control
+        "${OpenCV_LIBS}"
+)
+
+target_link_libraries(model
+        "${TORCH_LIBRARIES}"
+        "/opt/homebrew/opt/libomp/lib/libomp.dylib"
+)
+
+target_link_libraries(dataset
+        "${TORCH_LIBRARIES}"
+        "${OpenCV_LIBS}"
+        "/opt/homebrew/opt/libomp/lib/libomp.dylib"
+)
+
+target_link_libraries(train_model
+        dataset
+        model
+        "${TORCH_LIBRARIES}"
         "/opt/homebrew/opt/libomp/lib/libomp.dylib"
 )
 
