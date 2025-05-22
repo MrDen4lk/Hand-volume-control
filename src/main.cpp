@@ -1,7 +1,17 @@
 #include <iostream>
-#include <opencv2/highgui/highgui.hpp>
 #include <opencv2/opencv.hpp>
 #include <chrono>
+
+void set_volume(const short int volume) {
+    if (volume < 0 || volume > 100) {
+        return;
+    }
+    // forming command to change volume
+    std::string command = "osascript -e \"set volume output volume " + std::to_string(volume) + "\"";
+
+    // change volume
+    system(command.c_str());
+}
 
 int main(int argc, char** argv) {
     cv::VideoCapture cap(0, cv::CAP_AVFOUNDATION);
@@ -17,7 +27,7 @@ int main(int argc, char** argv) {
     bool run_webcam = true;
 
     while (run_webcam) {
-        // get 1 frame from webcamera
+        // get 1 frame from webcam
         cap >> frame;
 
         // calculate fps
@@ -31,10 +41,12 @@ int main(int argc, char** argv) {
         cv::putText(frame, fps_text, cv::Point(10, 30), cv::FONT_HERSHEY_SIMPLEX,
                     1.0, cv::Scalar(0, 255, 0), 2);
 
+
         // show frame
+        cv::resize(frame, frame, cv::Size(256, 256));
         cv::imshow("camera", frame);
 
-        // press "q" to quit
+        // press "esc" to quit
         if (cv::waitKey(30) == 27) {
             run_webcam = false;
         }
