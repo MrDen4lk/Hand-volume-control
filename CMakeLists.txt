@@ -12,8 +12,10 @@ find_package(Torch REQUIRED)
 find_package(OpenCV REQUIRED)
 
 # Source files
-file(GLOB SRC_FILES src/*.cpp)
-add_executable(hand_volume_control ${SRC_FILES})
+#file(GLOB SRC_FILES src/*.cpp)
+# add_executable(hand_volume_control ${SRC_FILES})
+add_executable(hand_volume_control src/main.cpp)
+add_executable(model src/model.cpp)
 
 # Link torch and libomp
 target_link_libraries(hand_volume_control
@@ -22,6 +24,14 @@ target_link_libraries(hand_volume_control
         "/opt/homebrew/opt/libomp/lib/libomp.dylib"
 )
 
+target_link_libraries(model
+        "${TORCH_LIBRARIES}"
+        "${OpenCV_LIBS}"
+        "/opt/homebrew/opt/libomp/lib/libomp.dylib"
+)
+
 set_property(TARGET hand_volume_control PROPERTY CXX_STANDARD 20)
 set_property(TARGET hand_volume_control PROPERTY POSITION_INDEPENDENT_CODE ON)
+set_property(TARGET model PROPERTY CXX_STANDARD 20)
+set_property(TARGET model PROPERTY POSITION_INDEPENDENT_CODE ON)
 set(CMAKE_EXE_LINKER_FLAGS "-Wl,-rpath,/opt/homebrew/opt/libomp/lib")

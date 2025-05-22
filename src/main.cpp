@@ -1,6 +1,7 @@
 #include <iostream>
 #include <opencv2/opencv.hpp>
 #include <chrono>
+#include "../include/model.hpp"
 
 void set_volume(const short int volume) {
     if (volume < 0 || volume > 100) {
