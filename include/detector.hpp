@@ -1,8 +1,6 @@
-//
-// Created by Denis Evstigneev on 22.05.2025.
-//
-
 #ifndef DETECTOR_HPP
 #define DETECTOR_HPP
+
+#pragma once
 
 #endif //DETECTOR_HPP
