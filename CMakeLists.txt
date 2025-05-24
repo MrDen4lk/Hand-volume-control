@@ -23,7 +23,7 @@ include_directories(${CMAKE_SOURCE_DIR}/include)
 add_executable(hand_volume_control src/main.cpp)
 add_executable(train_model src/train.cpp)
 
-# Link main.cpp with libraries
+# Link files with libraries
 target_link_libraries(hand_volume_control
         volume_control
         detector

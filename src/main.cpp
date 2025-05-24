@@ -1,10 +1,10 @@
-#include <iostream>
-#include <opencv2/opencv.hpp>
-#include <chrono>
-#include <volume_control.hpp>
 #include <detector.hpp>
 #include <utils.hpp>
 #include <model.hpp>
+#include <volume_control.hpp>
+#include <iostream>
+#include <chrono>
+#include <opencv2/opencv.hpp>
 
 /*
 int main(int argc, char** argv) {

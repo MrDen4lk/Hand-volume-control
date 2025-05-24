@@ -1,11 +1,11 @@
 #ifndef DATASET_HPP
 #define DATASET_HPP
 
-#include <torch/torch.h>
 #include <vector>
 #include <string>
+#include <torch/torch.h>
 
-struct HandKeypointsDataset : torch::data::Dataset<HandKeypointsDataset> {
+struct HandKeypointsDataset : torch::data::datasets::Dataset<HandKeypointsDataset> {
     std::vector<std::string> images;
     std::vector<std::vector<float>> keypoints;
 
