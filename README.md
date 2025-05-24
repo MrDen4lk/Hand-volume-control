@@ -3,7 +3,9 @@
 main.cpp - запуск приложения
 
 model.cpp/.hpp - архитектура модели  
+
 dataset.cpp/.hpp - датасет  
+
 train.cpp - обучение модели  
 
 detector.cpp/.hpp - применение обученной модели
