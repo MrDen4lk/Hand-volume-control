@@ -1,16 +1,12 @@
 # Hand-volume-control
 
-main.cpp - запуск приложения
+main.cpp - визуализация и применение громкости
 
 model.cpp/.hpp - архитектура модели  
 
 dataset.cpp/.hpp - датасет  
 
 train.cpp - обучение модели  
-
-detector.cpp/.hpp - применение обученной модели
-
-utils.cpp/.hpp - утилиты обработки кадра (отрисовки точек)
 
 volume_control.cpp/.hpp - изменение громкости
 
