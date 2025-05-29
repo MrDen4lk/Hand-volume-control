@@ -11,10 +11,11 @@ find_package(Torch REQUIRED)
 # Path of opencv
 find_package(OpenCV REQUIRED)
 
+find_library(COREAUDIO_LIBRARY CoreAudio)
+find_library(AUDIOTOOLBOX_LIBRARY AudioToolbox)
+
 # Add libraries
 add_library(volume_control src/volume_control.cpp include/volume_control.hpp)
-add_library(detector src/detector.cpp include/detector.hpp)
-add_library(utils src/utils.cpp include/utils.hpp)
 add_library(model src/model.cpp include/model.hpp)
 add_library(dataset src/dataset.cpp include/dataset.hpp)
 
@@ -26,8 +27,6 @@ add_executable(train_model src/train.cpp)
 # Link files with libraries
 target_link_libraries(hand_volume_control
         volume_control
-        detector
-        utils
         model
         dataset
         "${TORCH_LIBRARIES}"
@@ -37,6 +36,8 @@ target_link_libraries(hand_volume_control
 
 target_link_libraries(volume_control
         "${OpenCV_LIBS}"
+        "${COREAUDIO_LIBRARY}"
+        "${AUDIOTOOLBOX_LIBRARY}"
 )
 
 target_link_libraries(model

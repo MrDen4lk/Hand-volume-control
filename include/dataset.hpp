@@ -5,15 +5,17 @@
 #include <string>
 #include <torch/torch.h>
 
-struct HandKeypointsDataset : torch::data::datasets::Dataset<HandKeypointsDataset> {
-    std::vector<std::string> images;
-    std::vector<std::vector<float>> keypoints;
-
-    HandKeypointsDataset(const std::vector<std::string>& images_path,
-                         const std::vector<std::vector<float>>& keypoints_vec);
+class HandKeypointDataset : public torch::data::Dataset<HandKeypointDataset> {
+public:
+    HandKeypointDataset(const std::string &images_dir, const std::string& csv_path);
 
     torch::data::Example<> get(size_t index) override;
     [[nodiscard]] torch::optional<size_t> size() const override;
+
+private:
+    std::vector<std::string> image_paths_;
+    std::vector<torch::Tensor> keypoints_;
+    std::string images_dir_;
 };
 
 #endif //DATASET_HPP

@@ -20,7 +20,4 @@ void VolumeControl::set_volume(const float normalizedVolume) {
     system(command.c_str());
 }
 
-void VolumeControl::draw_volume(const cv::Mat &frame, float volume) {
-
-}
 

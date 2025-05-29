@@ -11,8 +11,6 @@ public:
 
     static void set_volume(float normalizedVolume);
 
-    static void draw_volume(const cv::Mat& frame, float volume);
-
 private:
     float _min_dist;
     float _max_dist;
