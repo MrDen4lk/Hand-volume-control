@@ -4,14 +4,7 @@
 #include <opencv2/opencv.hpp>
 #include <torch/torch.h>
 
-cv::Mat visualize_image(const cv::Mat& image,
-                                const torch::Tensor& heatmaps, // [num_keypoints, H, W]
-                                const VolumeControl& volume_control,
-                                const cv::Scalar& color = cv::Scalar(0, 0, 255),
-                                int radius = 4) {
-    cv::Mat vis_image;
-    image.copyTo(vis_image);
-
+std::vector<cv::Point2f> get_points(const cv::Mat& image, const torch::Tensor& heatmaps) {
     int heatmap_height = heatmaps.size(1);
     int heatmap_width = heatmaps.size(2);
 
@@ -39,9 +32,18 @@ cv::Mat visualize_image(const cv::Mat& image,
         int draw_x = static_cast<int>(x * scale_x);
         int draw_y = static_cast<int>(y * scale_y);
         points.push_back(cv::Point2f(draw_x, draw_y));
+    }
 
-        // Рисуем точки
-        cv::circle(vis_image, cv::Point(draw_x, draw_y), radius, color, -1);
+    return points;
+}
+
+cv::Mat draw_image(const cv::Mat& image, const std::vector<cv::Point2f>& points, const float volume) {
+    cv::Mat vis_image;
+    image.copyTo(vis_image);
+
+    // рисуем точки
+    for (auto [x, y] : points) {
+        cv::circle(vis_image, cv::Point(x, y), 4, cv::Scalar(0, 0, 255), -1);
     }
 
     // Рисуем полоску громкости
@@ -52,7 +54,7 @@ cv::Mat visualize_image(const cv::Mat& image,
                       cv::FILLED);
     cv::rectangle(vis_image,
                       cv::Point(0, 256 - 20),
-                      cv::Point(static_cast<int>(volume_control.get_volume(points[4], points[8]) * 256), 256),
+                      cv::Point(static_cast<int>(volume * 256), 256),
                       cv::Scalar(0, 255, 0), // зелёная полоска
                       cv::FILLED);
 
@@ -90,8 +92,15 @@ int main() {
         // удаляем batch dim
         auto heatmaps = output.squeeze(0).to(torch::kCPU).detach(); // [num_keypoints, H, W]
 
+        // Получаем точки и громкость
+        std::vector<cv::Point2f> points = get_points(image_float, heatmaps);
+        float volume = value.get_volume(points[4], points[8]);
+
+        // Устанавливаем громкость
+        //value.set_volume(volume);
+
         // Визуализация
-        frame = visualize_image(frame, heatmaps, value);
+        frame = draw_image(frame, points, volume);
         cv::imshow("image", frame);
         if (cv::waitKey(1) == 27) {
             break;
