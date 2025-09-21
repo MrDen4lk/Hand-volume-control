@@ -11,3 +11,5 @@ train.cpp - обучение модели
 volume_control.cpp/.hpp - изменение громкости
 
 tfrecords2csv_png.py - преобразование формата tfrecords в csv&png
+
+# Из-за плохого датасета плохие метрики
