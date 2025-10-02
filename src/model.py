@@ -1,40 +1,36 @@
-import torch
-from torchvision.models import efficientnet_b0, EfficientNet_B0_Weights
+from torchvision.models.convnext import convnext_base, ConvNeXt_Base_Weights
 from torch import nn
+
+class UpBlock(nn.Module):
+    def __init__(self, in_ch, out_ch):
+        super().__init__()
+        self.block = nn.Sequential(
+            nn.ConvTranspose2d(in_ch, out_ch, kernel_size=4, stride=2, padding=1),
+            nn.BatchNorm2d(out_ch),
+            nn.ReLU()
+        )
+
+    def forward(self, x):
+        return self.block(x)
+
 
 class EfficientNetHeatmap(nn.Module):
     def __init__(self, out_channels):
         super(EfficientNetHeatmap, self).__init__()
 
-        self.encoder = efficientnet_b0(weights=EfficientNet_B0_Weights.IMAGENET1K_V1).features
-        encoder_out_channels = 1280
+        encoder_model = convnext_base(weights=ConvNeXt_Base_Weights.IMAGENET1K_V1)
+        self.encoder = encoder_model.features
 
         self.decoder = nn.Sequential(
-            # Upsample block 1: 7x7 -> 14x14
-            nn.Conv2d(encoder_out_channels, 512, kernel_size=3, padding=1),
-            nn.BatchNorm2d(512),
-            nn.ReLU(inplace=True),
-            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False),
-
-            # Upsample block 2: 14x14 -> 28x28
-            nn.Conv2d(512, 256, kernel_size=3, padding=1),
-            nn.BatchNorm2d(256),
-            nn.ReLU(inplace=True),
-            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False),
-
-            # Upsample block 3: 28x28 -> 56x56
-            nn.Conv2d(256, 128, kernel_size=3, padding=1),
-            nn.BatchNorm2d(128),
-            nn.ReLU(inplace=True),
-            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False),
-
-            # Final convolution to get the right number of channels
-            nn.Conv2d(128, out_channels, kernel_size=1),
-            nn.Sigmoid()
+            UpBlock(1024, 512),  # 7x7 -> 14x14
+            UpBlock(512, 256),  # 14x14 -> 28x28
+            UpBlock(256, 128),  # 28x28 -> 56x56
+            UpBlock(128, 64),  # 56x56 -> 112x112
+            UpBlock(64, 32),  # 112x112 -> 224x224
+            nn.Conv2d(32, out_channels, kernel_size=1) # финальный слой
         )
 
     def forward(self, x):
-        with torch.no_grad():
-            x = self.encoder(x) # [B, 1280, 7, 7]
-        x = self.decoder(x) # [B, out_channels, H, W]
+        x = self.encoder(x)
+        x = self.decoder(x)
         return x

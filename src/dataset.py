@@ -1,12 +1,13 @@
 from utils import generate_heatmaps
 
 import os
-import numpy as np
 import torch
 from torch.utils.data import Dataset
 from PIL import Image
+import numpy as np
+
 class HandPointDataset(Dataset):
-    def __init__(self, img_dir, lbl_dir, split='train', transform=None, sigma=2, downsample=4):
+    def __init__(self, img_dir, lbl_dir, split='train', transform=None, sigma=2, downsample=1):
         self.img_dir = os.path.join(img_dir, split)
         self.lbl_dir = os.path.join(lbl_dir, split)
         self.sigma = sigma
@@ -23,7 +24,7 @@ class HandPointDataset(Dataset):
         img_name = self.image_files[idx]
         img_path = os.path.join(self.img_dir, img_name)
 
-        image = Image.open(img_path).convert('RGB')
+        image = np.array(Image.open(img_path).convert('RGB'))
 
         base_name, _ = os.path.splitext(img_name)
         lbl_path = os.path.join(self.lbl_dir, base_name + ".txt")
@@ -34,7 +35,9 @@ class HandPointDataset(Dataset):
         keypoints = torch.tensor(parts, dtype=torch.float32).view(-1, 3)
 
         if self.transform:
-            image = self.transform(image)
+            transformed = self.transform(image=image, keypoints=keypoints[:, :2].tolist())
+            image = transformed['image']
+            keypoints[:, :2] = torch.tensor(transformed['keypoints'], dtype=torch.float32)
 
         heatmaps = generate_heatmaps(keypoints, 224, 224, sigma=self.sigma, downsample=self.downsample)
 

@@ -8,7 +8,8 @@ def NCC(logit, target): # метрика качества heatmap
     target = target - target.mean(dim=[2, 3], keepdim=True)
     numerator = (logit * target).sum(dim=[2, 3])
     denominator = torch.sqrt((logit ** 2).sum(dim=[2, 3]) * (target ** 2).sum(dim=[2, 3]) + 1e-6)
-    return (numerator / denominator).mean().item()
+    score = numerator / denominator  # [B, K]
+    return score.mean()
 
 def train_epoch(model, optimizer, criterion, device, train_loader, scheduler=None):
     loss_log, ncc_log = [], []
@@ -35,7 +36,7 @@ def train_epoch(model, optimizer, criterion, device, train_loader, scheduler=Non
         wandb.log({
             "train/batch_loss": loss.item(),
             "train/batch_ncc": ncc_value,
-            "batch_num": batch_num
+            "train/batch_num": batch_num
         })
 
     avg_loss = np.mean(loss_log)
@@ -67,7 +68,7 @@ def val_epoch(model, criterion, device, val_loader):
         wandb.log({
                 "val/batch_loss": loss.item(),
                 "val/batch_ncc": ncc_value,
-                "val_batch_num": batch_num
+                "val/val_batch_num": batch_num
             })
 
     avg_loss = np.mean(loss_log)
@@ -84,7 +85,6 @@ def train_model(model, optimizer, criterion, scheduler, train_loader, val_loader
     wandb.watch(model, log="all", log_freq=10)
 
     for epoch in tqdm.trange(n_epoch, desc="Training Progress"):
-        wandb.log({"epoch": epoch})
 
         train_loss, train_ncc = train_epoch(model, optimizer, criterion, device, train_loader, scheduler)
         val_loss, val_ncc = val_epoch(model, criterion, device, val_loader)
@@ -92,9 +92,9 @@ def train_model(model, optimizer, criterion, scheduler, train_loader, val_loader
         wandb.log({
             "epoch": epoch,
             "train_loss": train_loss,
-            "train_nnc": train_ncc,
+            "train_ncc": train_ncc,
             "val_loss": val_loss,
-            "val_nnc": val_ncc
+            "val_ncc": val_ncc
         })
 
         try:

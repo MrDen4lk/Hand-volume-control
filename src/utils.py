@@ -3,10 +3,17 @@ import torch
 from PIL import Image
 from matplotlib import pyplot as plt
 
-def generate_heatmaps(keypoints, height, width, sigma=2, downsample=4):
+def generate_heatmaps(keypoints, height, width, sigma=2, downsample=1):
     num_points = keypoints.shape[0]
     h, w = height // downsample, width // downsample
     heatmaps = np.zeros((num_points, h, w), dtype=np.float32)
+
+    keypoints[keypoints[:, 0] < 0] = 0
+    keypoints[keypoints[:, 1] < 0] = 0
+    keypoints[keypoints[:, 2] == 0] = 0
+
+    #keypoints[:, 0] /= width  # width
+    #keypoints[:, 1] /= height  # height
 
     for i, (x, y, v) in enumerate(keypoints.numpy()):
         if v == 0:
@@ -52,7 +59,6 @@ def visualize_heatmap(image, heatmaps):
         (0, 17), (17, 18), (18, 19), (19, 20)
     ]
 
-    downsample = 4
     threshold = 0.001  # порог для отсутствия ключевой точки
 
     for j in range(rows):
