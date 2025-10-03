@@ -45,12 +45,12 @@ def main():
     train_dataset = dataset.HandPointDataset(train_img_dir, train_lbl_dir, split="train", transform=train_transform)
     val_dataset = dataset.HandPointDataset(val_img_dir, val_lbl_dir, split="val", transform=val_transform)
 
-    train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True, pin_memory=True, num_workers=5)
-    val_loader = DataLoader(val_dataset, batch_size=16, shuffle=False, pin_memory=True, num_workers=5)
+    train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True, pin_memory=True, num_workers=5)
+    val_loader = DataLoader(val_dataset, batch_size=64, shuffle=False, pin_memory=True, num_workers=5)
 
     # image, heatmaps = next(iter(train_loader))
-    # # utils.visualize_heatmap(image, heatmaps)
-    #
+    # utils.visualize_heatmap(image, heatmaps)
+
     # # Проверьте распределение данных
     # print(f"Train size: {len(train_dataset)}")
     # print(f"Val size: {len(val_dataset)}")
@@ -69,7 +69,8 @@ def main():
         "project": "heatmap_keypoints_detector",
         "experiment": "efficientnet-b0_finetune",
         "epochs": 20,
-        "lr": 1e-4,
+        "lr": 3e-4,
+        "weight_decay" : 1e-2,
         "optimizer": "AdamW",
         "criterion": "MSELoss",
         "scheduler": "CosineAnnealingLR",
@@ -81,23 +82,23 @@ def main():
     model = EfficientNetHeatmap(out_channels=config["num_keypoints"])
     model = model.to(config["device"], non_blocking=True)
 
-    optimizer = optim.AdamW(model.parameters(), lr=config["lr"])
+    optimizer = torch.optim.AdamW(model.parameters(), lr=config["lr"], weight_decay=config["weight_decay"])
     criterion = nn.MSELoss()
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, config["epochs"] * len(train_loader))
 
     # ОБУЧЕНИЕ
 
-    wandb.init(project=config["project"], config=config)
-    train_utils.train_model(
-        model=model,
-        optimizer=optimizer,
-        criterion=criterion,
-        scheduler=scheduler,
-        train_loader=train_loader,
-        val_loader=val_loader,
-        device=config["device"],
-        n_epoch=config["epochs"]
-    )
+    # wandb.init(project=config["project"], config=config)
+    # train_utils.train_model(
+    #     model=model,
+    #     optimizer=optimizer,
+    #     criterion=criterion,
+    #     scheduler=scheduler,
+    #     train_loader=train_loader,
+    #     val_loader=val_loader,
+    #     device=config["device"],
+    #     n_epoch=config["epochs"]
+    # )
 
 if __name__ == "__main__":
     main()

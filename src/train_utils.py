@@ -9,7 +9,7 @@ def NCC(logit, target): # метрика качества heatmap
     numerator = (logit * target).sum(dim=[2, 3])
     denominator = torch.sqrt((logit ** 2).sum(dim=[2, 3]) * (target ** 2).sum(dim=[2, 3]) + 1e-6)
     score = numerator / denominator  # [B, K]
-    return score.mean()
+    return score.mean().item()
 
 def train_epoch(model, optimizer, criterion, device, train_loader, scheduler=None):
     loss_log, ncc_log = [], []
@@ -29,15 +29,21 @@ def train_epoch(model, optimizer, criterion, device, train_loader, scheduler=Non
         if scheduler is not None:
             scheduler.step()
 
-        loss_log.append(loss.item())
-        ncc_value = NCC(logits, batch_heatmaps)
-        ncc_log.append(ncc_value)
+        with torch.no_grad():
+            loss_value = loss.item()
+            ncc_value = NCC(logits.detach(), batch_heatmaps.detach())
 
-        wandb.log({
-            "train/batch_loss": loss.item(),
-            "train/batch_ncc": ncc_value,
-            "train/batch_num": batch_num
-        })
+            loss_log.append(loss_value)
+            ncc_log.append(ncc_value)
+
+            wandb.log({
+                "train/batch_loss": loss_value,
+                "train/batch_ncc": ncc_value,
+                "train/batch_num": batch_num
+            })
+
+        torch.mps.empty_cache()
+
 
     avg_loss = np.mean(loss_log)
     avg_ncc = np.mean(ncc_log)

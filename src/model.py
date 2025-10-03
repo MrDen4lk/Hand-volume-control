@@ -1,5 +1,7 @@
-from torchvision.models.convnext import convnext_base, ConvNeXt_Base_Weights
+from torchvision.models.convnext import convnext_small, ConvNeXt_Small_Weights
 from torch import nn
+import torch
+
 
 class UpBlock(nn.Module):
     def __init__(self, in_ch, out_ch):
@@ -7,7 +9,10 @@ class UpBlock(nn.Module):
         self.block = nn.Sequential(
             nn.ConvTranspose2d(in_ch, out_ch, kernel_size=4, stride=2, padding=1),
             nn.BatchNorm2d(out_ch),
-            nn.ReLU()
+            nn.ReLU(inplace=True),
+            nn.Conv2d(out_ch, out_ch, kernel_size=3, padding=1),
+            nn.BatchNorm2d(out_ch),
+            nn.ReLU(inplace=True)
         )
 
     def forward(self, x):
@@ -16,18 +21,18 @@ class UpBlock(nn.Module):
 
 class EfficientNetHeatmap(nn.Module):
     def __init__(self, out_channels):
-        super(EfficientNetHeatmap, self).__init__()
-
-        encoder_model = convnext_base(weights=ConvNeXt_Base_Weights.IMAGENET1K_V1)
+        super().__init__()
+        encoder_model = convnext_small(weights=ConvNeXt_Small_Weights.IMAGENET1K_V1)
         self.encoder = encoder_model.features
 
         self.decoder = nn.Sequential(
-            UpBlock(1024, 512),  # 7x7 -> 14x14
-            UpBlock(512, 256),  # 14x14 -> 28x28
-            UpBlock(256, 128),  # 28x28 -> 56x56
-            UpBlock(128, 64),  # 56x56 -> 112x112
-            UpBlock(64, 32),  # 112x112 -> 224x224
-            nn.Conv2d(32, out_channels, kernel_size=1) # финальный слой
+            UpBlock(768, 512),
+            UpBlock(512, 256),
+            UpBlock(256, 128),
+            UpBlock(128, 64),
+            UpBlock(64, 32),
+            nn.Conv2d(32, out_channels, kernel_size=1),
+            nn.Sigmoid()
         )
 
     def forward(self, x):
