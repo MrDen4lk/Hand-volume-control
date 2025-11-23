@@ -2,16 +2,20 @@ import torch
 import tqdm.auto as tqdm
 import wandb
 import numpy as np
+import os
+from torch.cuda.amp import autocast, GradScaler
 
-def NCC(logit, target): # метрика качества heatmap
+
+def NCC(logit, target):
     logit = logit - logit.mean(dim=[2, 3], keepdim=True)
     target = target - target.mean(dim=[2, 3], keepdim=True)
     numerator = (logit * target).sum(dim=[2, 3])
     denominator = torch.sqrt((logit ** 2).sum(dim=[2, 3]) * (target ** 2).sum(dim=[2, 3]) + 1e-6)
-    score = numerator / denominator  # [B, K]
+    score = numerator / denominator
     return score.mean().item()
 
-def train_epoch(model, optimizer, criterion, device, train_loader, scheduler=None):
+
+def train_epoch(model, optimizer, criterion, device, train_loader, scaler, scheduler=None):
     loss_log, ncc_log = [], []
 
     model.train()
@@ -19,16 +23,18 @@ def train_epoch(model, optimizer, criterion, device, train_loader, scheduler=Non
         batch_image = batch_image.to(device, non_blocking=True)
         batch_heatmaps = batch_heatmaps.to(device, non_blocking=True)
 
-        optimizer.zero_grad()
+        optimizer.zero_grad(set_to_none=True)
 
-        logits = model(batch_image)
+        # AMP
+        with autocast(enabled=(device == 'cuda')):
+            logits = model(batch_image)
+            loss = criterion(logits, batch_heatmaps)
 
-        loss = criterion(logits, batch_heatmaps)
-        loss.backward()
-        optimizer.step()
-        if scheduler is not None:
-            scheduler.step()
+        scaler.scale(loss).backward()
+        scaler.step(optimizer)
+        scaler.update()
 
+        # Логирование
         with torch.no_grad():
             loss_value = loss.item()
             ncc_value = NCC(logits.detach(), batch_heatmaps.detach())
@@ -42,8 +48,8 @@ def train_epoch(model, optimizer, criterion, device, train_loader, scheduler=Non
                 "train/batch_num": batch_num
             })
 
-        torch.mps.empty_cache()
-
+    if scheduler is not None:
+        scheduler.step()
 
     avg_loss = np.mean(loss_log)
     avg_ncc = np.mean(ncc_log)
@@ -55,6 +61,7 @@ def train_epoch(model, optimizer, criterion, device, train_loader, scheduler=Non
 
     return avg_loss, avg_ncc
 
+
 def val_epoch(model, criterion, device, val_loader):
     loss_log, ncc_log = [], []
 
@@ -64,18 +71,13 @@ def val_epoch(model, criterion, device, val_loader):
         batch_heatmaps = batch_heatmaps.to(device, non_blocking=True)
 
         with torch.no_grad():
-            logits = model(batch_image)
+            with autocast(enabled=(device == 'cuda')):
+                logits = model(batch_image)
+                loss = criterion(logits, batch_heatmaps)
 
-        loss = criterion(logits, batch_heatmaps)
-        loss_log.append(loss.item())
-        ncc_value = NCC(logits, batch_heatmaps)
-        ncc_log.append(ncc_value)
-
-        wandb.log({
-                "val/batch_loss": loss.item(),
-                "val/batch_ncc": ncc_value,
-                "val/val_batch_num": batch_num
-            })
+            loss_log.append(loss.item())
+            ncc_value = NCC(logits, batch_heatmaps)
+            ncc_log.append(ncc_value)
 
     avg_loss = np.mean(loss_log)
     avg_ncc = np.mean(ncc_log)
@@ -87,12 +89,19 @@ def val_epoch(model, criterion, device, val_loader):
 
     return avg_loss, avg_ncc
 
+
 def train_model(model, optimizer, criterion, scheduler, train_loader, val_loader, device, n_epoch):
     wandb.watch(model, log="all", log_freq=10)
 
-    for epoch in tqdm.trange(n_epoch, desc="Training Progress"):
+    # AMP
+    scaler = GradScaler(enabled=(device == 'cuda'))
 
-        train_loss, train_ncc = train_epoch(model, optimizer, criterion, device, train_loader, scheduler)
+    # Создаем папку для моделей, если нет
+    os.makedirs("../models", exist_ok=True)
+    best_ncc = -1.0
+
+    for epoch in tqdm.trange(n_epoch, desc="Training Progress"):
+        train_loss, train_ncc = train_epoch(model, optimizer, criterion, device, train_loader, scaler, scheduler)
         val_loss, val_ncc = val_epoch(model, criterion, device, val_loader)
 
         wandb.log({
@@ -104,10 +113,27 @@ def train_model(model, optimizer, criterion, scheduler, train_loader, val_loader
         })
 
         try:
-            # Трассируем модель
-            example_input = torch.randn(1, 3, 224, 224).to(device, non_blocking=True)
-            traced_model = torch.jit.trace(model, example_input)
-            traced_model.save(f"../models/hand_keypoints_traced_{epoch}.pt")
-            print("✅ Модель сохранена")
+            model.eval()
+
+            dummy_input = torch.randn(1, 3, 224, 224, device=device)
+
+            onnx_path = f"../models/hand_keypoints_epoch_{epoch}.onnx"
+
+            torch.onnx.export(
+                model,
+                dummy_input,
+                onnx_path,
+                export_params=True,
+                opset_version=12,
+                do_constant_folding=True,
+                input_names=['input'],
+                output_names=['output'],
+                dynamic_axes={
+                    'input': {0: 'batch_size'},
+                    'output': {0: 'batch_size'}
+                }
+            )
+            print(f"✅ Модель сохранена в ONNX: {onnx_path}")
+
         except Exception as e:
-            print(f"❌ Ошибка при tracing: {e}")
+            print(f"❌ Ошибка при экспорте в ONNX: {e}")
