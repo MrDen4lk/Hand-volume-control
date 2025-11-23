@@ -21,6 +21,10 @@ const std::vector<std::pair<int, int>> SKELETON_CONNECTIONS = {
 const float MEAN[] = {0.485f, 0.456f, 0.406f};
 const float STD[]  = {0.229f, 0.224f, 0.225f};
 
+cv::Point2f smooth_p4 = {0, 0};
+cv::Point2f smooth_p8 = {0, 0};
+float alpha = 0.5f;
+
 struct Point {
     float x;
     float y;
@@ -67,7 +71,7 @@ int main() {
     Ort::Env env(ORT_LOGGING_LEVEL_WARNING, "HandVolumeControl");
     Ort::SessionOptions session_options;
 
-    const char* model_path = "../models/hand_keypoints_epoch_9.onnx";
+    const char* model_path = "../models/hand_keypoints_convnext_base.onnx";
 
     Ort::Session session(nullptr);
     try {
@@ -161,7 +165,16 @@ int main() {
             cv::Point2f cv_p8(p8.x, p8.y);
 
             // 3. Вычисляем нормализованную громкость (0.0 - 1.0)
-            float current_vol = volume_ctrl.get_volume(cv_p4, cv_p8);
+
+            if (smooth_p4.x == 0) { smooth_p4 = cv::Point2f(p4.x, p4.y); }
+            if (smooth_p8.x == 0) { smooth_p8 = cv::Point2f(p8.x, p8.y); }
+
+            // Формула сглаживания: New = Prev * (1-alpha) + Curr * alpha
+            smooth_p4 = smooth_p4 * (1.0f - alpha) + cv::Point2f(p4.x, p4.y) * alpha;
+            smooth_p8 = smooth_p8 * (1.0f - alpha) + cv::Point2f(p8.x, p8.y) * alpha;
+
+            // Используем smooth_p4 вместо p4 для расчета громкости
+            float current_vol = volume_ctrl.get_volume(smooth_p4, smooth_p8);
 
             // 4. Оптимизация: меняем системную громкость, только если изменение > 1%
             // Это спасет от лагов из-за system("osascript")
