@@ -1,7 +1,7 @@
 # Hand Volume Control
 
 ![C++](https://img.shields.io/badge/C++-20-blue.svg?style=flat&logo=c%2B%2B)
-![PyTorch](https://img.shields.io/badge/PyTorch-2.0-ee4c2c)
+![PyTorch](https://img.shields.io/badge/PyTorch-2.x-ee4c2c?style=flat&logo=pytorch)
 ![OpenCV](https://img.shields.io/badge/OpenCV-4.x-green.svg?style=flat&logo=opencv)
 ![ONNX Runtime](https://img.shields.io/badge/ONNX_Runtime-Inference-orange.svg?style=flat&logo=onnx)
 ![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Linux-lightgrey)
