@@ -17,7 +17,7 @@ The core logic is implemented in **C++** to ensure maximum performance and effic
 ## 🚀 Key Features
 
 * **High Performance:** ~40 FPS on CPU M3 pro using ONNX Runtime.
-* **State-of-the-Art Model:** Uses **YOLOv8-Nano Pose** for robust keypoint detection.
+* **State-of-the-Art Model:** Uses **YOLOv8-Small Pose** for robust keypoint detection.
 * **Architecture Pattern:** Implements **Strategy Pattern** to easily switch between different deep learing models.
 * **Smooth Control:** Exponential Moving Average (EMA) filtering to prevent volume jitter.
 
@@ -28,7 +28,7 @@ Before the final C++ implementation, I conducted experiments with different arch
 | Model Architecture | Framework | Input Size | FPS (CPU) | Verdict |
 | :--- | :--- | :--- | :--- | :--- |
 | **Custom U-Net (ConvNext-base)** | ONNX Runtime | 224x224 | ~7 | Good for educational purposes (Heatmaps), but slow for real-time. |
-| **YOLOv8n-Pose** | ONNX Runtime | 224x224 | **~40** | **Selected.** Best trade-off between speed and accuracy. |
+| **YOLOv8s-Pose** | ONNX Runtime | 224x224 | **~40** | **Selected.** Best trade-off between speed and accuracy. |
 
 *The custom U-Net you can try changing model in main.cpp
 
