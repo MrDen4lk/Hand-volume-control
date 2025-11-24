@@ -41,29 +41,3 @@ Before the final C++ implementation, I conducted experiments with different arch
 * **ML Inference:** ONNX Runtime (C++ API)
 * **Build System:** CMake
 * **System Integration:** AppleScript (`osascript`) for macOS volume control.
-
-## 📂 Project Structure
-
-```text
-.
-├── bin/
-├── include/
-│   ├── hand_model_base.hpp
-│   ├── yolo_model.hpp
-│   ├── convnext_base_model.hpp
-│   └── volume_control.hpp
-├── src/
-│   ├── main.cpp 
-│   ├── yolo_model.cpp
-│   ├── convnext_base_model.cpp
-│   ├── dataset.py 
-│   ├── model.py  
-│   ├── train.py
-│   ├── train_yolo.py
-│   ├── train_utils.py
-│   ├── utils.py
-│   └── volume_control.cpp
-├── models/
-│   └── hand_keypoints_yolo.onnx
-├── CMakeLists.txt
-└── README.md
