@@ -1,22 +1,13 @@
 #include "volume_control.hpp"
+#include "hand_model_base.hpp"
+#include "yolo_model.hpp"
 #include <opencv2/opencv.hpp>
 #include <onnxruntime_cxx_api.h>
 #include <string>
 #include <vector>
 
-// Константы модели
-const int MODEL_W = 224;
-const int MODEL_H = 224;
-const int HEATMAP_W = 56; // 224 / 4
-const int HEATMAP_H = 56;
-const int NUM_KEYPOINTS = 21;
-const std::vector<std::pair<int, int>> SKELETON_CONNECTIONS = {
-    {0, 1}, {1, 2}, {2, 3}, {3, 4},       // Большой палец
-    {0, 5}, {5, 6}, {6, 7}, {7, 8},       // Указательный
-    {0, 9}, {9, 10}, {10, 11}, {11, 12},  // Средний
-    {0, 13}, {13, 14}, {14, 15}, {15, 16},// Безымянный
-    {0, 17}, {17, 18}, {18, 19}, {19, 20} // Мизинец
-};
+#include "convnext_base_model.hpp"
+
 // Параметры нормализации ImageNet
 const float MEAN[] = {0.485f, 0.456f, 0.406f};
 const float STD[]  = {0.229f, 0.224f, 0.225f};
@@ -25,68 +16,9 @@ cv::Point2f smooth_p4 = {0, 0};
 cv::Point2f smooth_p8 = {0, 0};
 float alpha = 0.5f;
 
-struct Point {
-    float x;
-    float y;
-    float confidence;
-};
-
-std::vector<Point> postprocess_heatmaps(const float* output_data, int num_kpts, int hm_w, int hm_h, int stride) {
-    std::vector<Point> keypoints;
-    int heatmap_area = hm_w * hm_h;
-
-    for (int k = 0; k < num_kpts; k++) {
-        // Указатель на начало текущего хитмапа (сдвигаем на площадь)
-        const float* heatmap = output_data + (k * heatmap_area);
-
-        // Ищем индекс максимального элемента в этом хитмапе
-        int max_idx = 0;
-        float max_val = -1.0f;
-
-        for (int i = 0; i < heatmap_area; i++) {
-            if (heatmap[i] > max_val) {
-                max_val = heatmap[i];
-                max_idx = i;
-            }
-        }
-
-        // Переводим индекс обратно в x и y (внутри 56x56)
-        int y_hm = max_idx / hm_w;
-        int x_hm = max_idx % hm_w;
-
-        // Масштабируем обратно к 224x224 (умножаем на stride=4)
-        // Добавляем 0.5 для центровки, если нужно, но пока просто умножим
-        float x_final = x_hm * stride;
-        float y_final = y_hm * stride;
-
-        keypoints.push_back({x_final, y_final, max_val});
-    }
-
-    return keypoints;
-}
-
-
 int main() {
-    // Инициализация onnx
-    Ort::Env env(ORT_LOGGING_LEVEL_WARNING, "HandVolumeControl");
-    Ort::SessionOptions session_options;
-
-    const char* model_path = "../models/hand_keypoints_convnext_base.onnx";
-
-    Ort::Session session(nullptr);
-    try {
-        session = Ort::Session(env, model_path, session_options);
-    } catch (const Ort::Exception& e) {
-        std::cerr << "Не удалось загрузить модель! Ошибка: " << e.what() << std::endl;
-        return -1;
-    }
-
-    // Размер: [B, 3, 224, 224]
-    std::vector<float> input_tensor_values(1 * 3 * MODEL_H * MODEL_W);
-    std::vector<int64_t> input_shape = {1, 3, MODEL_H, MODEL_W};
-    const char* input_names[] = {"input"};
-    const char* output_names[] = {"output"};
-    auto memory_info = Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault);
+    std::unique_ptr<HandModelBase> tracker = std::make_unique<YoloModel>("../models/hand_keypoints_yolo.onnx");
+    // std::unique_ptr<HandModelBase> tracker = std::make_unique<ConvNextBaseModel>("../models/hand_keypoints_convnext_base.onnx");
 
     // Работа с камерой
     cv::VideoCapture cap(0);
@@ -102,60 +34,25 @@ int main() {
     float last_volume = -1.0f;
 
     cv::Mat frame;
-    cv::Mat model_frame; // Отдельная картинка для модели
 
     while (true) {
-        tm.start();
 
+        tm.start(); // fps
         cap >> frame;
         if (frame.empty()) { break; }
 
-        // Преобразования
-        cv::resize(frame, model_frame, cv::Size(MODEL_W, MODEL_H));
+        cv::Mat model_frame;
+        cv::resize(frame, model_frame, cv::Size(HandModelBase::MODEL_W, HandModelBase::MODEL_H));
         cv::cvtColor(model_frame, model_frame, cv::COLOR_BGR2RGB);
 
-        int pixels_count = MODEL_H * MODEL_W;
-        const uint8_t* img_data = model_frame.data;
+        // ===  Инференс ===
 
-        for (int i = 0; i < pixels_count; i++) {
-            // Берем пиксели R, G, B (0-255) и приводим к 0-1
-            float r = img_data[i * 3 + 0] / 255.0f;
-            float g = img_data[i * 3 + 1] / 255.0f;
-            float b = img_data[i * 3 + 2] / 255.0f;
+        std::vector<HandPoint> points = tracker->detect(model_frame);
 
-            // Нормализация (x - mean) / std
-            input_tensor_values[i] = (r - MEAN[0]) / STD[0];                   // R канал
-            input_tensor_values[i + pixels_count] = (g - MEAN[1]) / STD[1];    // G канал
-            input_tensor_values[i + pixels_count * 2] = (b - MEAN[2]) / STD[2];// B канал
-        }
-
-        // Инференс
-        Ort::Value input_tensor = Ort::Value::CreateTensor<float>(
-            memory_info,
-            input_tensor_values.data(),
-            input_tensor_values.size(),
-            input_shape.data(),
-            input_shape.size()
-        );
-
-        auto output_tensors = session.Run(
-            Ort::RunOptions{nullptr},
-            input_names,
-            &input_tensor,
-            1,
-            output_names,
-            1
-        );
-
-        // Постпроцессинг
-        float* output_data = output_tensors[0].GetTensorMutableData<float>();
-
-        std::vector<Point> points = postprocess_heatmaps(output_data, NUM_KEYPOINTS, HEATMAP_W, HEATMAP_H, 4);
-
-
+        // === Графика ===
         // Индексы: 4 (Большой палец), 8 (Указательный)
-        Point p4 = points[4];
-        Point p8 = points[8];
+        HandPoint p4 = points[4];
+        HandPoint p8 = points[8];
 
         // Работаем только если уверенность в точках высокая
         if (p4.confidence > 0.4 && p8.confidence > 0.4) {
@@ -218,8 +115,8 @@ int main() {
         }
 
         // отрисовка линии между большим и указательным
-        Point p1 = points[4];
-        Point p2 = points[8];
+        HandPoint p1 = points[4];
+        HandPoint p2 = points[8];
         if (p1.confidence > 0.4 && p2.confidence > 0.4) {
             cv::line(model_frame,
                      cv::Point((int)p1.x, (int)p1.y),
@@ -235,17 +132,16 @@ int main() {
             }
         }
 
-        // FPS
         tm.stop();
         double fps = tm.getFPS();
-        tm.reset(); // Сбрасываем таймер для следующего кадра
+        tm.reset();
 
         // Рисуем FPS в углу
         std::string fps_text = "FPS: " + std::to_string((int)fps);
         cv::putText(model_frame, fps_text, cv::Point(5, 15),
                     cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 0), 2);
 
-        //  Отображение
+        // === Отображение ===
         imshow("image", model_frame);
         if (cv::waitKey(1) == 27) {break;}
     }
