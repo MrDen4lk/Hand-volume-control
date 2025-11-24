@@ -1,5 +1,6 @@
 # Hand Volume Control
 
+![Python 3](https://img.shields.io/badge/python-3-blue?logo=python&logoColor=white)
 ![C++](https://img.shields.io/badge/C++-20-blue.svg?style=flat&logo=c%2B%2B)
 ![PyTorch](https://img.shields.io/badge/PyTorch-2.x-ee4c2c?style=flat&logo=pytorch)
 ![OpenCV](https://img.shields.io/badge/OpenCV-4.x-green.svg?style=flat&logo=opencv)
